@@ -1,0 +1,147 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Customer profiles including identity and contact details",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Products available for purchase: Kompos Blok and Briket",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "stock": { "type": "number" },
+        "images": { "type": "array" },
+        "isActive": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "price", "stock", "isActive"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer transactions and shipment tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "items": { "type": "array" },
+        "totalPrice": { "type": "number" },
+        "status": { "type": "string", "enum": ["menunggu_pembayaran", "diproses", "dikirim", "selesai"] },
+        "shippingAddress": { "type": "string" },
+        "phone": { "type": "string" },
+        "courier": { "type": "string" },
+        "trackingNumber": { "type": "string" },
+        "paymentId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "items", "totalPrice", "status", "shippingAddress"]
+    },
+    "Article": {
+      "title": "Article",
+      "description": "Educational environment articles and news feed",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string" },
+        "coverImage": { "type": "string" },
+        "isPublished": { "type": "boolean" },
+        "views": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "content", "category", "isPublished"]
+    },
+    "FAQ": {
+      "title": "FAQ",
+      "description": "Frequently Asked Questions for customer education",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "question": { "type": "string" },
+        "answer": { "type": "string" },
+        "order": { "type": "number" },
+        "tags": { "type": "array" }
+      },
+      "required": ["id", "question", "answer", "order"]
+    },
+    "HomepageSection": {
+      "title": "Homepage Section Content",
+      "description": "CMS configurable landing page blocks",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["hero", "banner", "about", "products", "articles", "partners", "faq"] },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "buttonText": { "type": "string" },
+        "buttonLink": { "type": "string" },
+        "image": { "type": "string" },
+        "order": { "type": "number" }
+      },
+      "required": ["id", "type", "title", "order"]
+    },
+    "SiteSettings": {
+      "title": "Site Settings",
+      "description": "General settings for the MAKOSA web app",
+      "type": "object",
+      "properties": {
+        "logoUrl": { "type": "string" },
+        "siteName": { "type": "string" },
+        "tagline": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "socialMedia": { "type": "object" }
+      },
+      "required": ["siteName", "email", "phone"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Customer and Admin accounts in Firestore"
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "MAKOSA compost and briquette inventory items"
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Transactions placed by registered users"
+    },
+    "/articles/{articleId}": {
+      "schema": { "$ref": "#/entities/Article" },
+      "description": "Edukasi & program updates articles"
+    },
+    "/faqs/{faqId}": {
+      "schema": { "$ref": "#/entities/FAQ" },
+      "description": "Community questions and answers"
+    },
+    "/homepageContent/{sectionId}": {
+      "schema": { "$ref": "#/entities/HomepageSection" },
+      "description": "Section layouts and text assets editable by Admin"
+    },
+    "/settings/general": {
+      "schema": { "$ref": "#/entities/SiteSettings" },
+      "description": "Contact info, address, socials and branding logo"
+    }
+  }
+}

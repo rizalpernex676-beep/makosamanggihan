@@ -1,0 +1,6 @@
+{
+  "name": "MAKOSA Desa Manggihan",
+  "description": "Website Resmi Program MAKOSA Desa Manggihan untuk Pengelolaan Sampah Mandiri dan Ketahanan Energi Berkelanjutan.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

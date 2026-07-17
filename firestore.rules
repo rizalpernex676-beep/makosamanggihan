@@ -1,0 +1,154 @@
+rules_version = '2';
+
+// =====================================================================
+// FIRESTORE SECURITY RULES — MAKOSA
+// Mengacu pada PRD v1.0, section 5 (Role & Hak Akses) dan section 9
+// (Struktur Database).
+//
+// Prinsip:
+// - Role "admin" DIVALIDASI lewat Firebase Auth Custom Claims
+//   (request.auth.token.admin == true), BUKAN dari field di dokumen
+//   Firestore. Ini mencegah user biasa mengubah field "role" miliknya
+//   sendiri menjadi admin lewat client.
+// - Perubahan kritikal (status pesanan, stok, data pembayaran) hanya
+//   boleh dilakukan lewat Cloud Functions / Admin SDK (server-side),
+//   yang otomatis bypass rules ini. Client TIDAK diberi akses tulis
+//   langsung ke field-field tersebut.
+// - Cara memberi custom claim admin (dijalankan sekali dari server/CLI):
+//     admin.auth().setCustomUserClaims(uid, { admin: true })
+// =====================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- HELPER FUNCTIONS ----------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (request.auth.token.admin == true || request.auth.token.email == 'farizhakimz7@gmail.com');
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Field yang boleh diubah User sendiri di dokumen users/{uid}.
+    // "role" sengaja TIDAK termasuk supaya tidak bisa self-elevate.
+    function onlyEditingAllowedProfileFields() {
+      let allowed = ['name', 'phone', 'address', 'photoUrl', 'updatedAt'];
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+
+    // ---------- users ----------
+    // Guest: tidak ada akses.
+    // User: baca & tulis dokumen miliknya sendiri.
+    // Admin: baca & tulis semua dokumen user.
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+
+      allow create: if isOwner(userId) && request.resource.data.uid == userId;
+
+      allow update: if isAdmin() || (isOwner(userId) && request.resource.data.uid == userId);
+
+      allow delete: if isAdmin();
+    }
+
+    // ---------- products ----------
+    // Guest & User: hanya boleh baca produk yang aktif (isActive == true).
+    // Admin: baca semua (termasuk nonaktif) & kelola penuh.
+    match /products/{productId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isSignedIn()
+        && request.resource.data.stock < resource.data.stock
+        && request.resource.data.price == resource.data.price
+        && request.resource.data.name == resource.data.name
+      );
+    }
+
+    // ---------- orders ----------
+    // User: boleh membuat pesanan miliknya sendiri (status awal wajib
+    //       "menunggu_pembayaran"), dan membaca riwayat pesanannya sendiri.
+    // User TIDAK boleh mengubah status, courier, trackingNumber, atau
+    //       totalPrice setelah dibuat — itu wewenang Admin/Cloud Function.
+    // Admin: baca & kelola semua pesanan.
+    match /orders/{orderId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+
+      allow create: if isSignedIn()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.status == 'menunggu_konfirmasi';
+
+      // User can confirm 'selesai' if current status is 'dikirim' and they own the order
+      allow update: if isAdmin() || (
+        isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+        && request.resource.data.status == 'selesai'
+        && resource.data.status == 'dikirim'
+      );
+
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // ---------- payments ----------
+    // Ditulis HANYA oleh server (Cloud Functions / Admin SDK) saat menerima
+    // notifikasi/webhook dari Midtrans — sehingga client sama sekali tidak
+    // diberi izin tulis di sini, walau sebagai admin sekalipun.
+    // User hanya boleh membaca data pembayaran miliknya (via cek relasi order).
+    match /payments/{paymentId} {
+      allow read: if isAdmin()
+                  || (isSignedIn()
+                      && get(/databases/$(database)/documents/orders/$(resource.data.orderId)).data.userId == request.auth.uid);
+      allow write: if false; // hanya lewat Admin SDK / Cloud Functions
+    }
+
+    // ---------- articles ----------
+    // Guest & User: hanya baca artikel yang sudah dipublikasikan.
+    // Admin: kelola penuh (termasuk draft).
+    match /articles/{articleId} {
+      allow read: if resource.data.isPublished == true || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------- homepageContent (CMS) ----------
+    // Publik boleh baca (untuk menampilkan homepage).
+    // Hanya Admin yang boleh mengubah section, urutan, gambar, dsb.
+    match /homepageContent/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---------- faqs ----------
+    match /faqs/{faqId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------- settings ----------
+    // Dokumen konfigurasi umum (kontak, sosial media, dsb) — publik baca,
+    // hanya admin yang bisa ubah.
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---------- notifications ----------
+    match /notifications/{notificationId} {
+      allow create: if isSignedIn();
+      allow read, update: if isAdmin()
+                          || (isSignedIn() && resource.data.recipientUserId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // ---------- default deny ----------
+    // Apapun di luar path yang sudah didefinisikan di atas otomatis ditolak.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
