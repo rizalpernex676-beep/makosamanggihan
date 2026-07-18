@@ -144,7 +144,13 @@ service cloud.firestore {
                           || (isSignedIn() && resource.data.recipientUserId == request.auth.uid);
       allow delete: if isAdmin();
     }
-
+    
+		// ---------- sessionLogs ----------
+		match /sessionLogs/{logId} {
+  		allow create: if isSignedIn();
+  		allow read: if isAdmin();
+  		allow update, delete: if false;
+		}
     // ---------- default deny ----------
     // Apapun di luar path yang sudah didefinisikan di atas otomatis ditolak.
     match /{document=**} {
