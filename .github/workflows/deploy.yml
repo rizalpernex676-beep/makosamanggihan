@@ -38,5 +38,22 @@ jobs:
       - name: Build
         run: npm run build
 
-      # --- STEP DEPLOY DI BAWAH INI JANGAN DIGANTI DULU ---
-      # (isi step deploy yang lama, yang kirim file ke server)
+      - name: Deploy to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOSTNAME }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "dist/*,server.cjs"
+          target: ${{ secrets.DEPLOY_PATH }}
+          strip_components: 0
+
+      - name: Restart backend via PM2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOSTNAME }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cp ${{ secrets.DEPLOY_PATH }}/server.cjs /home/slebeww/backend/makosa/
+            pm2 restart makosa-backend
