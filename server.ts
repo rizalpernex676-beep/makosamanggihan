@@ -285,24 +285,21 @@ app.post('/api/calculate/domestic-cost', async (req, res) => {
       return res.json({ code: "0200", message: "success", data: mockRates });
     }
 
-    const url = `https://rajaongkir.komerce.id/api/v1/calculate/domestic-cost`;
+     const url = `https://rajaongkir.komerce.id/api/v1/calculate/domestic-cost`;
+    const formData = new URLSearchParams();
+    formData.append('origin', String(origin));
+    formData.append('destination', String(destination));
+    formData.append('weight', String(Number(weight)));
+    formData.append('courier', String(courier));
+
     const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'key': apiKey,
-        'Content-Type': 'application/json',
+    method: 'POST',
+    headers: {
+    'key': apiKey,
+    'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: JSON.stringify({
-        origin,
-        destination,
-        weight: Number(weight),
-        courier,
-        Origin: origin,
-        Destination: destination,
-        Weight: Number(weight),
-        Courier: courier,
-      })
-    });
+      body: formData.toString()
+  });
 
     if (!response.ok) {
       const errText = await response.text();
